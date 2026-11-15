@@ -1,0 +1,352 @@
+<title>우리 집 장보기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  /* Layout: one centered column — header, add form, category cards, reset footer.
+     A single deliberate look (purple → lavender → pearl), the same in light and dark. */
+  :root {
+    --purple-900: #3b1f6b;
+    --purple-700: #5b2fa8;
+    --purple-500: #7c4ddb;
+    --pearl: #fbf8ff;
+    --card: rgba(255, 255, 255, 0.74);
+    --card-border: rgba(255, 255, 255, 0.92);
+    --field: #ffffff;
+    --field-border: #ddd0f5;
+    --text: #2a1a4a;
+    --muted: #6f5f8f;
+    --chip: #efe7ff;
+    --chip-done-bg: #e6f6ea;
+    --chip-done-fg: #2e7d4a;
+    --danger-bg: #fbe9ef;
+    --danger-fg: #c2385a;
+    --on-purple: #ffffff;
+    --shadow: 0 8px 28px rgba(76, 40, 140, 0.18);
+    --font: "Gowun Dodum", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 16px;
+    color: var(--text);
+    background: #6a3fc4 linear-gradient(160deg, #6a3fc4 0%, #9b7be0 28%, #c9b6f2 58%, #ece4fb 80%, var(--pearl) 100%) fixed;
+    min-height: 100vh;
+    padding-block: 24px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+  header { color: var(--on-purple); text-align: center; padding-bottom: 6px; }
+  header h1 { margin: 0 0 6px; font-size: 1.9rem; text-wrap: balance; text-shadow: 0 2px 10px rgba(40, 10, 90, 0.3); }
+  .progress-text { font-size: 1rem; font-variant-numeric: tabular-nums; }
+  .bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,0.35); margin: 10px auto 0; max-width: 360px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #fff, #f1e9ff); transition: width .35s ease; }
+  .status { margin-top: 8px; font-size: 0.85rem; min-height: 1.2em; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  form.add { padding: 14px; display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
+  form.add input, form.add select, form.add button {
+    font: inherit; font-size: 1rem; border-radius: 12px; border: 1.5px solid var(--field-border);
+    padding: 10px 12px; background: var(--field); color: var(--text); min-width: 0;
+  }
+  form.add input:focus-visible, form.add select:focus-visible { outline: none; border-color: var(--purple-500); box-shadow: 0 0 0 3px rgba(124,77,219,0.22); }
+  form.add button { background: var(--purple-700); color: var(--on-purple); border: none; cursor: pointer; font-weight: bold; }
+  form.add button:hover { background: var(--purple-900); }
+  form.add button:disabled { opacity: .6; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--purple-500); outline-offset: 2px; }
+
+  .group { padding: 14px 16px 8px; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .group-head h2 { margin: 0; font-size: 1.1rem; color: var(--purple-900); }
+  .count { font-size: 0.85rem; color: var(--purple-700); background: var(--chip); padding: 3px 10px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .count.done { background: var(--chip-done-bg); color: var(--chip-done-fg); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-top: 1px dashed #e4d9f7; }
+  li:first-child { border-top: none; }
+  li label { flex: 1; display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 0; }
+  li input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--purple-700); flex-shrink: 0; cursor: pointer; }
+  .name { font-size: 1.05rem; overflow-wrap: anywhere; }
+  .qty { font-size: 0.85rem; color: var(--muted); background: #f5f0ff; padding: 2px 8px; border-radius: 8px; white-space: nowrap; }
+  li.checked .name { text-decoration: line-through; text-decoration-color: var(--purple-500); color: var(--muted); }
+  li.checked { opacity: 0.55; }
+  .del { border: none; background: transparent; color: #a593c7; font-size: 1.3rem; cursor: pointer; width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; }
+  .del:hover { background: var(--danger-bg); color: var(--danger-fg); }
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 4px 0 10px; }
+
+  .first-run { padding: 22px 18px; text-align: center; color: var(--muted); line-height: 1.6; }
+  .first-run strong { color: var(--purple-900); }
+
+  .footer { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 8px; }
+  .reset, .confirm button {
+    font: inherit; font-size: 1rem; padding: 12px 22px; border-radius: 99px; border: 1.5px solid var(--purple-500);
+    background: rgba(255,255,255,0.88); color: var(--purple-700); cursor: pointer; box-shadow: var(--shadow);
+  }
+  .reset:hover { background: #fff; }
+  .confirm { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 18px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .confirm span { width: 100%; text-align: center; }
+  .confirm .yes { background: var(--purple-700); color: var(--on-purple); border-color: var(--purple-700); }
+  .note { font-size: 0.8rem; color: var(--muted); text-align: center; }
+
+  @media (max-width: 420px) {
+    form.add { grid-template-columns: 1fr 72px; }
+    header h1 { font-size: 1.6rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>🛒 우리 집 장보기</h1>
+    <div class="progress-text" id="progressText">목록을 불러오는 중이에요…</div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="status" id="status" role="status"></div>
+  </header>
+
+  <form class="add card" id="addForm" autocomplete="off">
+    <input id="nameInput" placeholder="무엇을 살까요? (예: 두부)" required maxlength="40" aria-label="살 것">
+    <input id="qtyInput" placeholder="수량" maxlength="10" aria-label="수량">
+    <select id="catInput" aria-label="종류"></select>
+    <button type="submit" id="addBtn">추가</button>
+  </form>
+
+  <main id="groups"></main>
+
+  <div class="footer" id="footer">
+    <button class="reset" id="resetBtn" type="button">🔄 체크 모두 풀기</button>
+    <div class="confirm" id="confirmBox" hidden>
+      <span>체크를 모두 풀까요? 항목은 그대로 남아요.</span>
+      <button class="yes" id="confirmYes" type="button">네, 풀기</button>
+      <button id="confirmNo" type="button">아니요</button>
+    </div>
+    <div class="note">가족 모두가 같은 목록을 함께 봐요. 누가 체크하면 다른 화면에도 바로 반영돼요.</div>
+  </div>
+</div>
+
+<script>
+  const CATEGORIES = [
+    { id: "veg", label: "🥬 채소·과일" },
+    { id: "meat", label: "🥩 고기·생선" },
+    { id: "dairy", label: "🥛 유제품·계란" },
+    { id: "grain", label: "🍚 곡물·가공식품" },
+    { id: "home", label: "🧻 생활용품" },
+    { id: "etc", label: "📦 기타" }
+  ];
+  const CAT_IDS = new Set(CATEGORIES.map(c => c.id));
+
+  let items = [];          // [{id, name, qty, cat, checked, createdAt}]
+  let loaded = false;
+  let canWrite = true;
+  let col = null;          // db collection "items"
+
+  const $ = id => document.getElementById(id);
+  const statusEl = $("status");
+  function setStatus(msg) { statusEl.textContent = msg || ""; }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  // 종류 선택 칸
+  CATEGORIES.forEach(c => {
+    const o = el("option", null, c.label);
+    o.value = c.id;
+    $("catInput").appendChild(o);
+  });
+
+  function render() {
+    const root = $("groups");
+    root.innerHTML = "";
+
+    if (loaded && items.length === 0) {
+      const box = el("section", "first-run card");
+      box.innerHTML = "";
+      box.appendChild(el("div", null, "목록이 비어 있어요."));
+      const s = el("strong", null, canWrite ? "위 칸에 살 것을 적고 [추가]를 눌러 보세요." : "가족이 항목을 추가하면 여기에 보여요.");
+      box.appendChild(s);
+      root.appendChild(box);
+    } else if (loaded) {
+      CATEGORIES.forEach(cat => {
+        const list = items.filter(i => (CAT_IDS.has(i.cat) ? i.cat : "etc") === cat.id);
+        const unchecked = list.filter(i => !i.checked);
+        const checked = list.filter(i => i.checked);
+
+        const section = el("section", "group card");
+        const head = el("div", "group-head");
+        head.appendChild(el("h2", null, cat.label));
+        if (list.length) {
+          const left = unchecked.length;
+          head.appendChild(el("span", "count" + (left === 0 ? " done" : ""), left === 0 ? "다 샀어요 ✓" : left + "개 남음"));
+        }
+        section.appendChild(head);
+
+        if (!list.length) {
+          section.appendChild(el("div", "empty", "아직 항목이 없어요"));
+        } else {
+          const ul = el("ul");
+          [...unchecked, ...checked].forEach(item => ul.appendChild(renderItem(item)));
+          section.appendChild(ul);
+        }
+        root.appendChild(section);
+      });
+    }
+
+    const total = items.length;
+    const done = items.filter(i => i.checked).length;
+    if (loaded) {
+      $("progressText").textContent = total === 0 ? "목록이 비어 있어요" : total + "개 중 " + done + "개 샀어요";
+    }
+    $("barFill").style.width = total ? (done / total * 100) + "%" : "0";
+
+    $("addForm").hidden = !canWrite;
+    $("resetBtn").hidden = !canWrite || !$("confirmBox").hidden;
+  }
+
+  function renderItem(item) {
+    const li = el("li", item.checked ? "checked" : "");
+    const label = el("label");
+    const cb = el("input");
+    cb.type = "checkbox";
+    cb.checked = !!item.checked;
+    cb.disabled = !canWrite;
+    cb.addEventListener("change", () => toggle(item, cb.checked));
+    label.appendChild(cb);
+    label.appendChild(el("span", "name", item.name));
+    if (item.qty) label.appendChild(el("span", "qty", item.qty));
+    li.appendChild(label);
+
+    if (canWrite) {
+      const del = el("button", "del", "×");
+      del.type = "button";
+      del.title = item.name + " 지우기";
+      del.setAttribute("aria-label", item.name + " 지우기");
+      del.addEventListener("click", () => remove(item));
+      li.appendChild(del);
+    }
+    return li;
+  }
+
+  function explain(e) {
+    const code = e && e.code;
+    if (code === "invalid_argument") { canWrite = false; render(); return "이 목록은 보기만 할 수 있어요."; }
+    if (code === "quota_exceeded") return "저장 공간이 가득 찼어요. 필요 없는 항목을 지워 주세요.";
+    if (code === "resource_exhausted") return "너무 빨리 바꾸고 있어요. 잠시 뒤에 다시 해 주세요.";
+    return "저장하지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.";
+  }
+
+  async function toggle(item, value) {
+    if (!col) return;
+    try { await col.doc(item.id).update({ checked: value }); setStatus(""); }
+    catch (e) { setStatus(explain(e)); render(); }
+  }
+
+  async function remove(item) {
+    if (!col) return;
+    try { await col.doc(item.id).delete(); setStatus(""); }
+    catch (e) { setStatus(explain(e)); }
+  }
+
+  $("addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!col) return;
+    const name = $("nameInput").value.trim();
+    if (!name) return;
+    const qty = $("qtyInput").value.trim();
+    const cat = $("catInput").value;
+    $("addBtn").disabled = true;
+    try {
+      await col.add({ name, qty, cat, checked: false, createdAt: Date.now() });
+      $("nameInput").value = "";
+      $("qtyInput").value = "";
+      $("nameInput").focus();
+      setStatus("");
+    } catch (err) { setStatus(explain(err)); }
+    $("addBtn").disabled = false;
+  });
+
+  // 체크 모두 풀기 (페이지 안에서 확인)
+  $("resetBtn").addEventListener("click", () => {
+    if (!items.some(i => i.checked)) { setStatus("체크된 항목이 없어요."); return; }
+    $("confirmBox").hidden = false;
+    $("resetBtn").hidden = true;
+    $("confirmYes").focus();
+  });
+  $("confirmNo").addEventListener("click", closeConfirm);
+  function closeConfirm() { $("confirmBox").hidden = true; render(); }
+  $("confirmYes").addEventListener("click", async () => {
+    closeConfirm();
+    const targets = items.filter(i => i.checked);
+    setStatus("체크를 푸는 중이에요…");
+    try {
+      for (const i of targets) await col.doc(i.id).update({ checked: false });
+      setStatus("");
+    } catch (e) { setStatus(explain(e)); }
+  });
+
+  render();
+
+  // 공용 저장소 연결
+  (async () => {
+    const timer = setTimeout(() => {
+      if (!loaded) setStatus("목록을 아직 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");
+    }, 10000);
+
+    const db = window.claude ? await window.claude.use("db") : null;
+    if (!db) {
+      clearTimeout(timer);
+      canWrite = false;
+      $("progressText").textContent = "목록을 열 수 없어요";
+      setStatus("로그인하거나 공유받은 링크로 열어야 목록이 보여요.");
+      render();
+      return;
+    }
+
+    const user = await window.claude.use("user");
+    if (user) {
+      try {
+        const ok = await user.can("data.write");
+        if (ok === false) canWrite = false;
+      } catch (e) {}
+    }
+
+    col = db.collection("items");
+    col.orderBy("createdAt").onSnapshot(snap => {
+      items = snap.docs.map(d => {
+        const v = d.data() || {};
+        return {
+          id: d.id,
+          name: String(v.name || ""),
+          qty: String(v.qty || ""),
+          cat: String(v.cat || "etc"),
+          checked: !!v.checked,
+          createdAt: Number(v.createdAt || 0)
+        };
+      }).filter(i => i.name);
+      loaded = true;
+      if (!snap.metadata.fromCache) { clearTimeout(timer); if (statusEl.textContent.startsWith("목록을 아직")) setStatus(""); }
+      render();
+    }, err => {
+      clearTimeout(timer);
+      loaded = true;
+      setStatus(err && err.code === "revoked" ? "이 목록을 더 볼 수 없어요." : "목록과 연결이 끊겼어요. 페이지를 다시 열어 주세요.");
+      render();
+    });
+  })();
+</script>
