@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>신청함 — 바이블가이드 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root { --paper: #F8F4E8; --ink: #09090B; --acid: #D2E823; --white: #FFFDF7; --muted: #4A4A44; }
+  [hidden] { display: none !important; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.6 'Space Grotesk', 'Pretendard', system-ui, sans-serif; }
+  .wrap { width: min(760px, 100% - 32px); margin: 0 auto; padding: 32px 0 64px; }
+  h1 { font: 400 32px/1.1 'Black Han Sans', sans-serif; margin: 0 0 24px; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .box { background: var(--white); border: 2px solid var(--ink); border-radius: 16px; padding: 24px; box-shadow: 4px 4px 0 0 var(--ink); }
+  label { display: grid; gap: 8px; font-weight: 700; }
+  input[type=password] { font: inherit; font-size: 17px; padding: 14px 16px; border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); width: 100%; }
+  button { font: 700 16px/1 inherit; font-family: inherit; cursor: pointer; border: 2px solid var(--ink); border-radius: 12px; padding: 14px 18px; min-height: 48px; background: var(--white); color: var(--ink); box-shadow: 2px 2px 0 0 var(--ink); }
+  button:active { transform: translate(2px, 2px); box-shadow: none; }
+  .primary { background: var(--ink); color: var(--acid); }
+  .err { color: #9B1C1C; font-weight: 700; margin: 12px 0 0; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .count { background: var(--acid); border: 2px solid var(--ink); border-radius: 16px; padding: 20px 24px; box-shadow: 4px 4px 0 0 var(--ink); margin-bottom: 24px; }
+  .count b { display: block; font: 400 56px/1 'Black Han Sans', sans-serif; }
+  .list { display: grid; gap: 16px; }
+  .card { background: var(--white); border: 2px solid var(--ink); border-radius: 16px; padding: 18px 20px; }
+  .card.new { box-shadow: 4px 4px 0 0 var(--ink); }
+  .card .meta { font-size: 14px; color: var(--muted); }
+  .card .name { font-weight: 700; font-size: 19px; margin: 2px 0; }
+  .card .contact { border: 0; box-shadow: none; padding: 4px 0; min-height: 0; text-decoration: underline; text-underline-offset: 3px; background: none; font-weight: 500; }
+  .card .msg { white-space: pre-wrap; margin: 8px 0 12px; background: var(--paper); border-radius: 10px; padding: 10px 12px; }
+  .status { display: flex; gap: 8px; flex-wrap: wrap; }
+  .status button[aria-pressed=true] { background: var(--ink); color: var(--acid); box-shadow: none; }
+  .empty { text-align: center; padding: 40px 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>바이블가이드 신청함</h1>
+
+  <form class="box" id="login">
+    <label>관리자 비밀번호
+      <input type="password" id="pw" autocomplete="current-password" required>
+    </label>
+    <p class="err" id="login-err" hidden></p>
+    <p style="margin:16px 0 0"><button class="primary" type="submit">신청함 열기</button></p>
+  </form>
+
+  <div id="app" hidden>
+    <div class="top">
+      <button type="button" id="reload">새로고침</button>
+      <button type="button" id="logout">잠그기</button>
+    </div>
+    <div class="count"><b id="new-count">0</b>새 신청</div>
+    <p class="err" id="app-err" hidden></p>
+    <div class="list" id="list"></div>
+  </div>
+</div>
+
+<script>
+  const STATUSES = ['새 문의', '연락함', '완료'];
+  const $ = (id) => document.getElementById(id);
+  const getPw = () => sessionStorage.getItem('bg_admin') || '';
+  const api = (opts = {}) => fetch('/api/admin', { ...opts, headers: { 'x-admin-password': getPw(), 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const fmt = (s) => new Date(s).toLocaleString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+
+  function el(tag, props = {}, ...kids) {
+    const n = Object.assign(document.createElement(tag), props);
+    kids.forEach(k => n.append(k));
+    return n;
+  }
+
+  async function load() {
+    $('app-err').hidden = true;
+    const r = await api().catch(() => null);
+    if (!r) { $('app-err').textContent = '인터넷 연결을 확인하고 새로고침을 눌러 주세요.'; $('app-err').hidden = false; return; }
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) { return lock('비밀번호가 맞지 않아요.'); }
+    if (!r.ok) { $('app-err').textContent = d.error || '불러오지 못했어요.'; $('app-err').hidden = false; return; }
+    $('login').hidden = true; $('app').hidden = false;
+    render(d.rows || []);
+  }
+
+  function render(rows) {
+    $('new-count').textContent = rows.filter(r => r.status === '새 문의').length;
+    const list = $('list'); list.replaceChildren();
+    if (!rows.length) { list.append(el('div', { className: 'card empty', textContent: '아직 들어온 신청이 없어요. 사이트의 신청 폼으로 들어오면 여기에 보여요.' })); return; }
+    rows.forEach(row => {
+      const contact = el('button', { type: 'button', className: 'contact', textContent: row.contact, title: '눌러서 복사' });
+      contact.onclick = async () => {
+        try { await navigator.clipboard.writeText(row.contact); contact.textContent = row.contact + ' (복사됨)'; setTimeout(() => contact.textContent = row.contact, 1500); }
+        catch { const s = getSelection(); const rg = document.createRange(); rg.selectNodeContents(contact); s.removeAllRanges(); s.addRange(rg); }
+      };
+      const status = el('div', { className: 'status' });
+      STATUSES.forEach(st => {
+        const b = el('button', { type: 'button', textContent: st });
+        b.setAttribute('aria-pressed', String(row.status === st));
+        b.onclick = async () => {
+          if (row.status === st) return;
+          const r = await api({ method: 'PATCH', body: JSON.stringify({ id: row.id, status: st }) });
+          if (r.ok) load(); else { $('app-err').textContent = '상태를 바꾸지 못했어요. 다시 눌러 주세요.'; $('app-err').hidden = false; }
+        };
+        status.append(b);
+      });
+      list.append(el('article', { className: 'card' + (row.status === '새 문의' ? ' new' : '') },
+        el('div', { className: 'meta', textContent: fmt(row.created_at) }),
+        el('div', { className: 'name', textContent: row.name }),
+        contact,
+        el('div', { className: 'msg', textContent: row.message ? '원하는 시간: ' + row.message : '원하는 시간: (적지 않음)' }),
+        status));
+    });
+  }
+
+  function lock(msg) {
+    sessionStorage.removeItem('bg_admin');
+    $('app').hidden = true; $('login').hidden = false;
+    $('pw').value = '';
+    $('login-err').textContent = msg || ''; $('login-err').hidden = !msg;
+    $('pw').focus();
+  }
+
+  $('login').addEventListener('submit', (e) => { e.preventDefault(); sessionStorage.setItem('bg_admin', $('pw').value); load(); });
+  $('reload').onclick = load;
+  $('logout').onclick = () => lock();
+  if (getPw()) load(); else $('pw').focus();
+</script>
+</body>
+</html>
